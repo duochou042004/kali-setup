@@ -44,14 +44,17 @@ main() {
     die "Không chạy bằng sudo/root. Chạy lại bằng user thường: $one_liner"
   fi
 
-  # Script chứa repo Debian trixie / apt purge riêng cho Kali
+  # Hỗ trợ Kali, Ubuntu, Debian (kali-setup.sh tự xử lý khác biệt giữa các distro)
   local os_id=""
   [[ -r /etc/os-release ]] && os_id="$(. /etc/os-release && echo "${ID:-}")"
-  if [[ "$os_id" != "kali" ]]; then
-    [[ "${KALI_SETUP_FORCE:-0}" == "1" ]] \
-      || die "Hệ điều hành '${os_id:-unknown}' không phải Kali. Đặt KALI_SETUP_FORCE=1 nếu chắc chắn."
-    warn "Không phải Kali (${os_id:-unknown}) - tiếp tục vì KALI_SETUP_FORCE=1"
-  fi
+  case "$os_id" in
+    kali|ubuntu|debian) info "Distro: $os_id" ;;
+    *)
+      [[ "${KALI_SETUP_FORCE:-0}" == "1" ]] \
+        || die "Distro '${os_id:-unknown}' chưa hỗ trợ (chỉ Kali, Ubuntu, Debian). Đặt KALI_SETUP_FORCE=1 để thử."
+      warn "Distro '${os_id:-unknown}' chưa hỗ trợ - vẫn thử vì KALI_SETUP_FORCE=1"
+      ;;
+  esac
 
   # Khi chạy qua pipe, stdin là nội dung script chứ không phải bàn phím.
   # Cần terminal thật cho: mật khẩu sudo, prompt của apt/sdkman, "read -t 15" trước khi reboot.
@@ -59,23 +62,10 @@ main() {
     die "Không tìm thấy terminal tương tác (/dev/tty). Hãy chạy lệnh trong một terminal."
   fi
 
-  command -v sudo >/dev/null 2>&1 || die "Thiếu 'sudo'. Cài sudo rồi chạy lại."
+  command -v sudo >/dev/null 2>&1 \
+    || die "Thiếu 'sudo'. Debian: su - -c 'apt install sudo && usermod -aG sudo $USER' rồi đăng nhập lại."
 
-  # Công cụ kali-setup.sh dùng trực tiếp (Kali mặc định đã có; chỉ cài nếu thiếu)
-  local -a missing=()
-  local cmd
-  for cmd in curl wget zsh git gpg; do
-    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-  done
-  if (( ${#missing[@]} )); then
-    local -a pkgs=()
-    for cmd in "${missing[@]}"; do
-      [[ $cmd == gpg ]] && pkgs+=(gnupg) || pkgs+=("$cmd")
-    done
-    info "Cài công cụ còn thiếu: ${pkgs[*]}"
-    sudo apt-get update </dev/tty
-    sudo apt-get install -y "${pkgs[@]}" </dev/tty
-  fi
+  # Gói nền (git, curl, zsh, zip...) do kali-setup.sh tự cài; ở đây chỉ cần curl/wget khi phải tải
 
   # --- 2. Lấy kali-setup.sh -----------------------------------------------
 
@@ -92,14 +82,19 @@ main() {
     [[ -f "$local_copy" ]] || local_copy=""
   fi
 
+  # Cho kali-setup.sh biết lấy tài nguyên đi kèm (dotfiles/) ở đâu, cùng nguồn/phiên bản với nó
   if [[ -n "$local_copy" ]]; then
     info "Dùng bản cục bộ: $local_copy"
     cp -- "$local_copy" "$script"
+    export KALI_SETUP_SRC_DIR="${local_copy%/*}"
   else
+    export KALI_SETUP_BASE_URL="${url%/*}"
     case "$url" in
       https://*|file://*) ;;
       *) die "URL không an toàn (chỉ chấp nhận https://): $url" ;;
     esac
+    command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 \
+      || die "Cần curl hoặc wget để tải kali-setup.sh."
     info "Tải $url"
     if command -v curl >/dev/null 2>&1; then
       curl -fsSL --retry 3 --retry-delay 2 -o "$script" "$url" \
