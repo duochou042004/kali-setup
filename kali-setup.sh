@@ -7,7 +7,7 @@
 # Cách chạy (user thường, KHÔNG dùng sudo):  chmod +x kali-setup.sh && ./kali-setup.sh
 
 # Phiên bản: "main" trên nhánh main; scripts/release.sh đổi thành tag (vd "v1.2.0") trong commit phát hành
-SETUP_VERSION="main"  # @release-ref
+SETUP_VERSION="v1.2.0"  # @release-ref
 
 # Phải chạy bằng user thường vì có ~/, git config --global, SDKMAN, systemctl --user
 if [[ $EUID -eq 0 ]]; then

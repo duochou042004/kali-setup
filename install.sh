@@ -33,7 +33,7 @@ main() {
   local repo="${KALI_SETUP_REPO:-duochou042004/kali-setup}"
   # Trên nhánh main là "main"; scripts/release.sh đổi thành tag (vd "v1.2.0") trong commit phát hành,
   # nên install.sh tải từ tag nào sẽ tự lấy kali-setup.sh + dotfiles/ của đúng tag đó.
-  local default_ref="main"  # @release-ref
+  local default_ref="v1.2.0"  # @release-ref
   local ref="${KALI_SETUP_REF:-$default_ref}"
   local url="${KALI_SETUP_URL:-https://raw.githubusercontent.com/${repo}/${ref}/kali-setup.sh}"
   local one_liner="curl -fsSL https://raw.githubusercontent.com/${repo}/${ref}/install.sh | bash"
