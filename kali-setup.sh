@@ -6,10 +6,21 @@
 # và zsh + cấu hình shell giống Kali TRƯỚC, rồi mới chạy các bước như trên Kali.
 # Cách chạy (user thường, KHÔNG dùng sudo):  chmod +x kali-setup.sh && ./kali-setup.sh
 
+# Phiên bản: "main" trên nhánh main; scripts/release.sh đổi thành tag (vd "v1.2.0") trong commit phát hành
+SETUP_VERSION="main"  # @release-ref
+
 # Phải chạy bằng user thường vì có ~/, git config --global, SDKMAN, systemctl --user
 if [[ $EUID -eq 0 ]]; then
   echo "Không chạy bằng sudo/root. Chạy lại: ./$(basename "$0")"
   exit 1
+fi
+
+# Màu: tắt khi đặt NO_COLOR (https://no-color.org) hoặc output không phải terminal.
+# Phải kiểm tra TRƯỚC khi nối stdout vào tee (sau đó stdout luôn là pipe).
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  C_B=$'\e[1;34m' C_G=$'\e[1;32m' C_R=$'\e[1;31m' C_D=$'\e[2m' C_0=$'\e[0m'
+else
+  C_B='' C_G='' C_R='' C_D='' C_0=''
 fi
 
 # Ghi log để xem lại khi có lỗi
@@ -39,11 +50,45 @@ case "$DISTRO_ID" in
     ;;
 esac
 is_kali() { [[ "$DISTRO_ID" == kali ]]; }
-echo "Distro: ${DISTRO_NAME:-$DISTRO_ID} ($DISTRO_ID ${DISTRO_VERSION:-?} ${DISTRO_CODENAME:-?})"
+
+# ---------- Danh sách bước ("Tên bước|tên_hàm", chạy theo thứ tự) ----------
+STEPS=()
+# Ubuntu/Debian: dựng môi trường giống Kali TRƯỚC (xem phần "Chạy" bên dưới)
+is_kali || STEPS+=("Chuẩn bị môi trường giống Kali (gói nền + zsh)|prepare_env")
+STEPS+=(
+  "Gỡ Java cũ (apt)|remove_java"
+  "Gỡ .NET 6|remove_dotnet6"
+  "Dọn dẹp + xóa alternatives|cleanup"
+  "Cài Java qua SDKMAN|install_java"
+  "Cài .NET SDK 10|install_dotnet10"
+  "Cài Node.js 24 qua nvm|install_node"
+  "Cấu hình Git|git_config"
+  "Cài GitHub CLI (gh)|install_gh"
+  "Cài GitLab CLI (glab)|install_glab"
+  "Cài Cloudflare WARP|install_warp"
+  "Thêm user vào nhóm kvm|setup_kvm"
+  "Cài Podman + podman-compose|install_podman"
+  "Setup fcitx5|setup_fcitx5"
+  "Chrome + fcitx5|setup_chrome_fcitx"
+  "apt update/upgrade/clean|system_upgrade"
+)
+
+# Banner kiểu prompt Kali: ┌──(kali-setup v1.2.0)
+hr() { local s; printf -v s '%*s' "$1" ''; printf '%s' "${s// /─}"; }  # hr N: N ký tự ─
+banner() {
+  local title="(kali-setup ${SETUP_VERSION})" width=64
+  echo "${C_B}┌──(${C_0}kali-setup ${C_G}${SETUP_VERSION}${C_B})$(hr $((width - 3 - ${#title})))${C_0}"
+  echo "${C_B}│${C_0} Distro  : ${DISTRO_NAME:-$DISTRO_ID} ${C_D}($DISTRO_ID ${DISTRO_VERSION:-?} ${DISTRO_CODENAME:-?})${C_0}"
+  echo "${C_B}│${C_0} User    : ${USER}@${HOSTNAME}"
+  echo "${C_B}│${C_0} Số bước : ${#STEPS[@]}$(is_kali || echo " (gồm bước chuẩn bị môi trường giống Kali)")"
+  echo "${C_B}│${C_0} Log     : $LOG"
+  echo "${C_B}└$(hr $((width - 1)))${C_0}"
+}
+banner
 
 # Nơi lấy tài nguyên đi kèm (dotfiles/): thư mục repo cục bộ, hoặc tải từ GitHub
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" 2>/dev/null && pwd)"
-BASE_URL="${KALI_SETUP_BASE_URL:-https://raw.githubusercontent.com/duochou042004/kali-setup/${KALI_SETUP_REF:-main}}"
+BASE_URL="${KALI_SETUP_BASE_URL:-https://raw.githubusercontent.com/duochou042004/kali-setup/${KALI_SETUP_REF:-$SETUP_VERSION}}"
 fetch_resource() {  # fetch_resource dotfiles/zshrc /đường/dẫn/đích
   local d
   for d in "${KALI_SETUP_SRC_DIR:-}" "$SCRIPT_DIR"; do
@@ -61,14 +106,32 @@ while true; do sudo -n true; sleep 50; kill -0 "$$" || exit; done 2>/dev/null &
 
 FAILED=()
 TIMES=()
+STEP_NO=0
 step() {  # step "Tên bước" ten_ham
-  echo -e "\n\e[1;34m==> $1\e[0m"
+  STEP_NO=$((STEP_NO + 1))
+  echo -e "\n${C_B}==> [${STEP_NO}/${#STEPS[@]}] $1${C_0}"
   local start=$SECONDS
   # Gọi trần (không kèm ||) để set -e bên trong hàm còn hiệu lực
   "$2"
-  if (( $? != 0 )); then echo -e "\e[1;31m[LỖI] $1\e[0m"; FAILED+=("$1"); fi
-  local d=$((SECONDS - start))
-  TIMES+=("$(printf '%3dm%02ds  %s' $((d/60)) $((d%60)) "$1")")
+  local rc=$?
+  local d=$((SECONDS - start)) t
+  t="$(printf '%dm%02ds' $((d/60)) $((d%60)))"
+  if (( rc != 0 )); then
+    echo -e "${C_R}[LỖI] $1${C_0} (mã $rc, $t)"
+    FAILED+=("$1")
+    TIMES+=("${C_R}✗ $(printf '%6s' "$t")  $1${C_0}")
+  else
+    echo -e "${C_G}✓${C_0} $1 ${C_D}($t)${C_0}"
+    TIMES+=("${C_G}✓${C_0} $(printf '%6s' "$t")  $1")
+  fi
+}
+
+# Báo xong: chuông terminal + thông báo desktop (khi đang trong phiên đồ họa có notify-send)
+notify_done() {  # notify_done <icon> <nội dung>
+  printf '\a' >/dev/tty 2>/dev/null || true
+  if command -v notify-send >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    notify-send -a kali-setup -i "$1" "kali-setup $SETUP_VERSION" "$2" 2>/dev/null || true
+  fi
 }
 
 # ---------- Chuẩn bị môi trường giống Kali (chỉ Ubuntu/Debian) ----------
@@ -86,7 +149,7 @@ sudo apt-get install -y "${pkgs[@]}"
 # Cấu hình zsh mặc định của Kali (dotfiles/ = /etc/skel/.zshrc, .zprofile của kali-defaults).
 # Đã có ~/.zshrc kiểu Kali (chạy lại script) thì giữ nguyên để không mất dòng SDKMAN/nvm.
 if [[ -f ~/.zshrc ]] && grep -q 'PROMPT_ALTERNATIVE' ~/.zshrc; then
-  echo "~/.zshrc kiểu Kali đã có, giữ nguyên"
+  echo "Đã có ~/.zshrc kiểu Kali, giữ nguyên"
 else
   fetch_resource dotfiles/zshrc ~/.zshrc.kali-setup
   [[ -e ~/.zshrc ]] && cp -a ~/.zshrc ~/.zshrc.bak."$(date +%Y%m%d%H%M%S)"
@@ -344,44 +407,34 @@ sudo apt update && sudo apt upgrade -y && sudo apt clean && sudo apt autoremove 
 
 # ---------- Chạy ----------
 
-# Ubuntu/Debian: dựng môi trường giống Kali TRƯỚC. Lỗi ở đây thì các bước sau chắc chắn hỏng
-# (thiếu zsh/curl/git...) nên dừng luôn thay vì chạy tiếp.
-if ! is_kali; then
-  step "Chuẩn bị môi trường giống Kali (gói nền + zsh)" prepare_env
-  if (( ${#FAILED[@]} )); then
-    echo -e "\e[1;31mChuẩn bị môi trường lỗi - dừng lại. Xem log: $LOG\e[0m"
-    exit 1
+for s in "${STEPS[@]}"; do
+  step "${s%%|*}" "${s##*|}"
+
+  if [[ "${s##*|}" == prepare_env ]]; then
+    # Lỗi ở bước chuẩn bị thì các bước sau chắc chắn hỏng (thiếu zsh/curl/git...) => dừng luôn
+    if (( ${#FAILED[@]} )); then
+      echo -e "${C_R}Chuẩn bị môi trường lỗi - dừng lại. Xem log: $LOG${C_0}"
+      notify_done dialog-error "Chuẩn bị môi trường lỗi - xem $LOG"
+      exit 1
+    fi
+    # Shell hiện tại vẫn là bash: báo cho installer (nvm, SDKMAN) rằng shell là zsh như trên Kali,
+    # để chúng ghi cấu hình vào ~/.zshrc thay vì ~/.bashrc
+    SHELL="$(command -v zsh)"; export SHELL
   fi
-  # Shell hiện tại vẫn là bash: báo cho installer (nvm, SDKMAN) rằng shell là zsh như trên Kali,
-  # để chúng ghi cấu hình vào ~/.zshrc thay vì ~/.bashrc
-  export SHELL="$(command -v zsh)"
-fi
+done
 
-step "Gỡ Java cũ (apt)"            remove_java
-step "Gỡ .NET 6"                   remove_dotnet6
-step "Dọn dẹp + xóa alternatives"  cleanup
-step "Cài Java qua SDKMAN"         install_java
-step "Cài .NET SDK 10"             install_dotnet10
-step "Cài Node.js 24 qua nvm"      install_node
-step "Cấu hình Git"                git_config
-step "Cài GitHub CLI (gh)"         install_gh
-step "Cài GitLab CLI (glab)"       install_glab
-step "Cài Cloudflare WARP"         install_warp
-step "Thêm user vào nhóm kvm"      setup_kvm
-step "Cài Podman + podman-compose" install_podman
-step "Setup fcitx5"                setup_fcitx5
-step "Chrome + fcitx5"             setup_chrome_fcitx
-step "apt update/upgrade/clean"    system_upgrade
-
-echo -e "\n\e[1;34m==> Tổng kết\e[0m (log: $LOG)"
+ok=$(( ${#STEPS[@]} - ${#FAILED[@]} ))
+echo -e "\n${C_B}==> Tổng kết${C_0} (log: $LOG)"
 echo "Thời gian từng bước:"
 printf '  %s\n' "${TIMES[@]}"
-printf '  Tổng: %dm%02ds\n' $((SECONDS/60)) $((SECONDS%60))
+printf '  Tổng: %dm%02ds  ·  %d/%d bước OK\n' $((SECONDS/60)) $((SECONDS%60)) "$ok" "${#STEPS[@]}"
 if (( ${#FAILED[@]} )); then
-  echo -e "\e[1;31mCác bước lỗi:\e[0m"
+  echo -e "${C_R}Các bước lỗi:${C_0}"
   printf '  - %s\n' "${FAILED[@]}"
+  notify_done dialog-warning "$ok/${#STEPS[@]} bước OK, ${#FAILED[@]} bước lỗi - xem $LOG"
 else
-  echo -e "\e[1;32mTất cả các bước OK.\e[0m"
+  echo -e "${C_G}Tất cả các bước OK.${C_0}"
+  notify_done dialog-information "Tất cả ${#STEPS[@]} bước OK - sắp reboot"
 fi
 
 read -t 15 -p "Reboot sau 15s (Enter để reboot ngay, Ctrl+C để hủy)... " || true

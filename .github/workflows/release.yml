@@ -1,0 +1,55 @@
+name: Release
+
+# Chạy khi push tag vX.Y.Z (tạo bằng scripts/release.sh)
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Kiểm tra tag đã ghim phiên bản
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          for f in install.sh kali-setup.sh; do
+            grep -q "\"$tag\"[[:space:]]*# @release-ref" "$f" \
+              || { echo "::error file=$f::chưa ghim \"$tag\" - hãy tạo tag bằng scripts/release.sh"; exit 1; }
+          done
+          bash -n install.sh && bash -n kali-setup.sh
+
+      - name: SHA256SUMS + ghi chú phát hành
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          sha256sum install.sh kali-setup.sh dotfiles/* > SHA256SUMS
+          ks_sha="$(sha256sum kali-setup.sh | cut -d' ' -f1)"
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}"
+          {
+            awk -v t="$tag" '$0 ~ "^## \\[" t "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md
+            echo
+            echo "### Cài đặt đúng phiên bản này"
+            echo
+            echo '```bash'
+            echo "curl -fsSL ${raw}/install.sh | bash"
+            echo '```'
+            echo
+            echo "Kiểm tra checksum \`kali-setup.sh\` trước khi chạy:"
+            echo
+            echo '```bash'
+            echo "curl -fsSL ${raw}/install.sh | KALI_SETUP_SHA256=${ks_sha} bash"
+            echo '```'
+          } > NOTES.md
+          cat NOTES.md
+
+      - name: Tạo GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "kali-setup ${GITHUB_REF_NAME}" \
+            --notes-file NOTES.md --verify-tag \
+            install.sh kali-setup.sh SHA256SUMS

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: shellcheck + bash -n
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: bash -n
+        run: for f in install.sh kali-setup.sh scripts/*.sh tests/*.sh; do bash -n "$f"; done
+      - name: shellcheck
+        run: shellcheck --severity=warning install.sh kali-setup.sh scripts/*.sh tests/*.sh
+      - name: Đúng 1 dòng @release-ref mỗi file
+        run: |
+          for f in install.sh kali-setup.sh; do
+            [ "$(grep -c '"main"[[:space:]]*# @release-ref' "$f")" = 1 ] || { echo "::error file=$f::cần đúng 1 dòng \"main\"  # @release-ref"; exit 1; }
+          done
+
+  smoke:
+    name: smoke (${{ matrix.image }})
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - docker.io/library/ubuntu:24.04
+          - docker.io/library/ubuntu:26.04
+          - docker.io/library/debian:12
+          - docker.io/library/debian:13
+          - docker.io/kalilinux/kali-rolling
+    steps:
+      - uses: actions/checkout@v7
+      - name: Chạy toàn bộ kali-setup.sh trong container
+        run: docker run --rm -v "$PWD:/src:ro" "${{ matrix.image }}" bash /src/tests/smoke.sh

@@ -8,10 +8,13 @@
 #   2. Tải TRỌN VẸN kali-setup.sh về thư mục tạm, kiểm tra cú pháp (+ checksum nếu có)
 #   3. Chạy kali-setup.sh như khi chạy ./kali-setup.sh, với stdin nối vào terminal
 #
+# Cố định phiên bản: tải install.sh từ tag, nó tự lấy kali-setup.sh cùng tag (từ v1.2.0):
+#   curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.2.0/install.sh | bash
+#
 # Tuỳ chọn (biến môi trường, đặt trước "bash"):
-#   curl -fsSL .../install.sh | KALI_SETUP_REF=v1.0.0 bash
+#   curl -fsSL .../install.sh | KALI_SETUP_REF=v1.2.0 bash
 #   KALI_SETUP_REPO=user/repo   repo GitHub chứa kali-setup.sh   (mặc định: duochou042004/kali-setup)
-#   KALI_SETUP_REF=main         branch / tag / commit SHA        (mặc định: main)
+#   KALI_SETUP_REF=main         branch / tag / commit SHA        (mặc định: phiên bản của chính install.sh)
 #   KALI_SETUP_URL=https://...  URL đầy đủ tới kali-setup.sh (ghi đè REPO/REF)
 #   KALI_SETUP_SHA256=<hash>    bắt buộc khớp SHA-256 trước khi chạy
 #   KALI_SETUP_FORCE=1          cho phép chạy trên hệ không phải Kali
@@ -28,7 +31,10 @@ main() {
   set -euo pipefail
 
   local repo="${KALI_SETUP_REPO:-duochou042004/kali-setup}"
-  local ref="${KALI_SETUP_REF:-main}"
+  # Trên nhánh main là "main"; scripts/release.sh đổi thành tag (vd "v1.2.0") trong commit phát hành,
+  # nên install.sh tải từ tag nào sẽ tự lấy kali-setup.sh + dotfiles/ của đúng tag đó.
+  local default_ref="main"  # @release-ref
+  local ref="${KALI_SETUP_REF:-$default_ref}"
   local url="${KALI_SETUP_URL:-https://raw.githubusercontent.com/${repo}/${ref}/kali-setup.sh}"
   local one_liner="curl -fsSL https://raw.githubusercontent.com/${repo}/${ref}/install.sh | bash"
 
