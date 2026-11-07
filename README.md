@@ -16,8 +16,9 @@ Trên Ubuntu/Debian, bước **"Chuẩn bị môi trường giống Kali"** ch�
 
 1. Cài gói mà Kali có sẵn: `git curl wget gnupg zip unzip zsh zsh-autosuggestions zsh-syntax-highlighting command-not-found im-config` (+ `software-properties-common` trên Ubuntu).
 2. Cài `~/.zshrc`, `~/.zprofile` mặc định của Kali ([dotfiles/](dotfiles/), lấy từ `/etc/skel` của gói `kali-defaults`) — prompt `┌──(user㉿host)-[~]`, gợi ý lệnh, tô màu cú pháp. `~/.zshrc` cũ được backup thành `~/.zshrc.bak.<thời gian>`.
-3. Đổi shell đăng nhập sang zsh (`chsh`), có hiệu lực sau reboot cuối script.
-4. Các bước sau chạy với `SHELL=zsh` để nvm/SDKMAN ghi cấu hình vào `~/.zshrc` giống trên Kali.
+3. Giống Kali: `/etc/zsh/zprofile` nạp thêm `/etc/profile` (+ `/etc/profile.d/*`, ví dụ PATH snap/flatpak). Làm bằng `dpkg-divert --local` (bản gốc giữ ở `/etc/zsh/zprofile.original`) nên nâng cấp `zsh-common` không ghi đè.
+4. Đổi shell đăng nhập sang zsh (`chsh`), có hiệu lực sau reboot cuối script.
+5. Các bước sau chạy với `SHELL=zsh` để nvm/SDKMAN ghi cấu hình vào `~/.zshrc` giống trên Kali.
 
 Nếu bước này lỗi, script dừng luôn (các bước sau phụ thuộc vào nó).
 

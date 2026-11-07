@@ -96,6 +96,20 @@ if [[ ! -e ~/.zprofile ]]; then
   fetch_resource dotfiles/zprofile ~/.zprofile
 fi
 
+# Kali (kali-defaults) divert /etc/zsh/zprofile để zsh đăng nhập nạp /etc/profile + /etc/profile.d/*
+# (PATH snap/flatpak, biến môi trường của gói khác...). Làm y hệt: dpkg-divert giữ bản gốc ở
+# .original nên nâng cấp zsh-common không ghi đè và không hỏi conffile.
+local zp=/etc/zsh/zprofile line="emulate sh -c '. /etc/profile'"
+if ! grep -qxF "$line" "$zp" 2>/dev/null; then
+  if [[ "$(dpkg-divert --truename "$zp")" == "$zp" ]]; then
+    sudo dpkg-divert --local --rename --divert "$zp.original" --add "$zp"
+  fi
+  local base="$zp"
+  [[ -f "$base" ]] || base="$(dpkg-divert --truename "$zp")"
+  { cat "$base"; printf '\n%s\n' "$line"; } | sudo tee "$zp.kali-setup" >/dev/null
+  sudo mv "$zp.kali-setup" "$zp"
+fi
+
 # Đổi shell đăng nhập sang zsh (có hiệu lực sau khi đăng nhập lại / reboot cuối script)
 local zsh_path cur
 zsh_path="$(command -v zsh)"
