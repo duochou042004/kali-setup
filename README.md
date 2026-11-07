@@ -32,7 +32,7 @@ Thay `main` bằng tag (xem [Releases](https://github.com/duochou042004/kali-set
 `install.sh` của tag nào tự lấy `kali-setup.sh` + `dotfiles/` của đúng tag đó:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.2.1/install.sh | bash
 ```
 
 Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) và file `SHA256SUMS`.
@@ -42,7 +42,7 @@ Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) v
 ### Khi chạy trông như thế nào
 
 ```text
-┌──(kali-setup v1.2.0)──────────────────────────────────────────
+┌──(kali-setup v1.2.1)──────────────────────────────────────────
 │ Distro  : Ubuntu 24.04.3 LTS (ubuntu 24.04 noble)
 │ User    : duong@laptop
 │ Số bước : 16 (gồm bước chuẩn bị môi trường giống Kali)
@@ -58,9 +58,18 @@ Thời gian từng bước:
   ✓  1m01s  Chuẩn bị môi trường giống Kali (gói nền + zsh)
   ✓  0m08s  Gỡ Java cũ (apt)
   ...
-  Tổng: 6m39s  ·  16/16 bước OK
-Tất cả các bước OK.
+  ⊘  0m00s  Chrome + fcitx5 (bỏ qua)
+  ✓  0m09s  apt update/upgrade/clean
+  Tổng: 4m36s  ·  15/16 bước OK, 1 bỏ qua
+Các bước bỏ qua (không phải lỗi):
+  ⊘ Chrome + fcitx5: chưa cài Google Chrome - cài Chrome rồi chạy lại script để bật gõ tiếng Việt cho Chrome
+Không có bước nào lỗi.
 ```
+
+- `✓` thành công · `✗` lỗi (liệt kê ở "Các bước lỗi", xem log) · `⊘` **bỏ qua**: bước không áp dụng được
+  trên máy này, có ghi lý do, **không phải lỗi**.
+- Hiện chỉ có **"Chrome + fcitx5"** có thể bị bỏ qua: bước này chỉ chỉnh shortcut của Google Chrome
+  (gói `google-chrome-stable`), mà Kali/Ubuntu/Debian cài mới đều chưa có Chrome. Cài Chrome rồi chạy lại script.
 
 Xong sẽ có tiếng bíp + thông báo desktop (`notify-send`, nếu có). Tắt màu: `NO_COLOR=1`.
 
@@ -123,6 +132,10 @@ git clone https://github.com/duochou042004/kali-setup && cd kali-setup && ./kali
 
 **Test:** `tests/run-local.sh` (hoặc `tests/run-local.sh ubuntu:24.04` cho 1 distro). CI chạy shellcheck
 + smoke test trên Ubuntu 24.04/26.04, Debian 12/13, Kali rolling mỗi lần push lên `main`.
+Smoke test **không chấp nhận bước lỗi nào**; Kali giả lập máy đã cài Chrome (test nhánh cấu hình),
+Ubuntu/Debian là máy chưa có Chrome (test nhánh bỏ qua).
+
+Bước mới không áp dụng được trên mọi máy thì gọi `skip "lý do"` trong hàm bước (đừng để nó báo lỗi).
 
 **Phát hành phiên bản mới:**
 

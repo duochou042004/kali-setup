@@ -18,9 +18,9 @@ fi
 # Màu: tắt khi đặt NO_COLOR (https://no-color.org) hoặc output không phải terminal.
 # Phải kiểm tra TRƯỚC khi nối stdout vào tee (sau đó stdout luôn là pipe).
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  C_B=$'\e[1;34m' C_G=$'\e[1;32m' C_R=$'\e[1;31m' C_D=$'\e[2m' C_0=$'\e[0m'
+  C_B=$'\e[1;34m' C_G=$'\e[1;32m' C_R=$'\e[1;31m' C_Y=$'\e[1;33m' C_D=$'\e[2m' C_0=$'\e[0m'
 else
-  C_B='' C_G='' C_R='' C_D='' C_0=''
+  C_B='' C_G='' C_R='' C_Y='' C_D='' C_0=''
 fi
 
 # Ghi log để xem lại khi có lỗi
@@ -105,8 +105,18 @@ fi
 while true; do sudo -n true; sleep 50; kill -0 "$$" || exit; done 2>/dev/null &
 
 FAILED=()
+SKIPPED=()
 TIMES=()
 STEP_NO=0
+
+# Bước không áp dụng được trên máy này (vd chưa cài Chrome) gọi: skip "lý do"
+# => báo "bỏ qua" kèm lý do, KHÔNG tính là lỗi. Hàm bước chạy trong subshell nên lý do
+# được chuyển ra qua file tạm.
+SKIP_RC=99
+SKIP_NOTE="$(mktemp)"
+trap 'rm -f "$SKIP_NOTE"' EXIT
+skip() { echo "$*" > "$SKIP_NOTE"; echo "  -> bỏ qua: $*"; exit "$SKIP_RC"; }
+
 step() {  # step "Tên bước" ten_ham
   STEP_NO=$((STEP_NO + 1))
   echo -e "\n${C_B}==> [${STEP_NO}/${#STEPS[@]}] $1${C_0}"
@@ -116,7 +126,12 @@ step() {  # step "Tên bước" ten_ham
   local rc=$?
   local d=$((SECONDS - start)) t
   t="$(printf '%dm%02ds' $((d/60)) $((d%60)))"
-  if (( rc != 0 )); then
+  if (( rc == SKIP_RC )); then
+    local why; why="$(cat "$SKIP_NOTE" 2>/dev/null)"; : > "$SKIP_NOTE"
+    echo -e "${C_Y}⊘ Bỏ qua: $1${C_0} ${C_D}($why)${C_0}"
+    SKIPPED+=("$1: $why")
+    TIMES+=("${C_Y}⊘${C_0} $(printf '%6s' "$t")  $1 ${C_D}(bỏ qua)${C_0}")
+  elif (( rc != 0 )); then
     echo -e "${C_R}[LỖI] $1${C_0} (mã $rc, $t)"
     FAILED+=("$1")
     TIMES+=("${C_R}✗ $(printf '%6s' "$t")  $1${C_0}")
@@ -388,6 +403,10 @@ cp /usr/share/applications/org.fcitx.Fcitx5.desktop ~/.config/autostart/
 
 setup_chrome_fcitx() ( set -eE
 trap 'echo "  -> lệnh lỗi: $BASH_COMMAND (mã $?)" >&2' ERR
+# Bước này chỉ chỉnh shortcut của Google Chrome (gói .deb google-chrome-stable). Kali/Ubuntu/Debian
+# cài mới đều KHÔNG có sẵn Chrome => bỏ qua có lý do thay vì báo lỗi.
+[[ -f /usr/share/applications/google-chrome.desktop ]] \
+  || skip "chưa cài Google Chrome - cài Chrome rồi chạy lại script để bật gõ tiếng Việt cho Chrome"
 mkdir -p ~/.local/share/applications
 cp /usr/share/applications/google-chrome.desktop \
    ~/.local/share/applications/google-chrome.desktop
@@ -423,15 +442,23 @@ for s in "${STEPS[@]}"; do
   fi
 done
 
-ok=$(( ${#STEPS[@]} - ${#FAILED[@]} ))
+ok=$(( ${#STEPS[@]} - ${#FAILED[@]} - ${#SKIPPED[@]} ))
+skip_txt=""; (( ${#SKIPPED[@]} )) && skip_txt=", ${#SKIPPED[@]} bỏ qua"
 echo -e "\n${C_B}==> Tổng kết${C_0} (log: $LOG)"
 echo "Thời gian từng bước:"
 printf '  %s\n' "${TIMES[@]}"
-printf '  Tổng: %dm%02ds  ·  %d/%d bước OK\n' $((SECONDS/60)) $((SECONDS%60)) "$ok" "${#STEPS[@]}"
+printf '  Tổng: %dm%02ds  ·  %d/%d bước OK%s\n' $((SECONDS/60)) $((SECONDS%60)) "$ok" "${#STEPS[@]}" "$skip_txt"
+if (( ${#SKIPPED[@]} )); then
+  echo -e "${C_Y}Các bước bỏ qua (không phải lỗi):${C_0}"
+  printf '  ⊘ %s\n' "${SKIPPED[@]}"
+fi
 if (( ${#FAILED[@]} )); then
   echo -e "${C_R}Các bước lỗi:${C_0}"
   printf '  - %s\n' "${FAILED[@]}"
-  notify_done dialog-warning "$ok/${#STEPS[@]} bước OK, ${#FAILED[@]} bước lỗi - xem $LOG"
+  notify_done dialog-warning "$ok/${#STEPS[@]} bước OK, ${#FAILED[@]} bước lỗi$skip_txt - xem $LOG"
+elif (( ${#SKIPPED[@]} )); then
+  echo -e "${C_G}Không có bước nào lỗi.${C_0}"
+  notify_done dialog-information "Không có bước nào lỗi ($ok/${#STEPS[@]} OK$skip_txt) - sắp reboot"
 else
   echo -e "${C_G}Tất cả các bước OK.${C_0}"
   notify_done dialog-information "Tất cả ${#STEPS[@]} bước OK - sắp reboot"

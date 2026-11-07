@@ -3,6 +3,15 @@
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), phiên bản theo [SemVer](https://semver.org/).
 Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
+## [v1.2.1] - 2026-11-08
+
+### Sửa
+- Bước "Chrome + fcitx5" báo **lỗi** trên mọi máy chưa cài Google Chrome (Kali/Ubuntu/Debian cài mới đều chưa có). Giờ báo **bỏ qua** (⊘) kèm lý do và cách xử lý, không tính là lỗi.
+
+### Thêm
+- Trạng thái "bỏ qua" cho bước: hàm bước gọi `skip "lý do"`; tổng kết hiện `n/N bước OK, k bỏ qua` và danh sách "Các bước bỏ qua (không phải lỗi)".
+- Smoke test không còn chấp nhận bước lỗi nào; Kali test nhánh đã cài Chrome, Ubuntu/Debian test nhánh bỏ qua.
+
 ## [v1.2.0] - 2026-11-08
 
 ### Thêm
@@ -36,7 +45,8 @@ Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 ### Thêm
 - Cài đặt một dòng `curl -fsSL .../install.sh | bash` cho `kali-setup.sh` (setup chuẩn Kali, giữ nguyên).
 
-[v1.2.0]: https://github.com/duochou042004/kali-setup/releases/tag/v1.2.0
+[v1.2.1]: https://github.com/duochou042004/kali-setup/compare/v1.2.0...v1.2.1
+[v1.2.0]: https://github.com/duochou042004/kali-setup/compare/v1.1.1...v1.2.0
 [v1.1.1]: https://github.com/duochou042004/kali-setup/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/duochou042004/kali-setup/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/duochou042004/kali-setup/tree/v1.0.0
