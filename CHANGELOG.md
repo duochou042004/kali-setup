@@ -3,7 +3,7 @@
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), phiên bản theo [SemVer](https://semver.org/).
 Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
-## [v1.2.0] - 2026-11-07
+## [v1.2.0] - 2026-11-08
 
 ### Thêm
 - Tag tự ghim phiên bản: `curl -fsSL .../v1.2.0/install.sh | bash` tự lấy `kali-setup.sh` + `dotfiles/` của đúng tag, không cần `KALI_SETUP_REF`. Phát hành bằng `scripts/release.sh`.
