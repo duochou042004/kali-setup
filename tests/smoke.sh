@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/smoke.sh - Smoke test chạy TOÀN BỘ kali-setup.sh trong container (root), dùng cho CI và local.
 #
-#   podman run --rm -v "$PWD:/src:ro" ubuntu:24.04 bash /src/tests/smoke.sh
+#   podman run --rm -v "$PWD:/src:ro" ubuntu:26.04 bash /src/tests/smoke.sh
 #   (hoặc: tests/run-local.sh)
 #
 # Tạo user thường có sudo, chạy install.sh bản cục bộ trong pty (giống người dùng thật gõ lệnh),
@@ -41,9 +41,8 @@ if [[ "$ID" == kali ]]; then
     > /usr/share/applications/google-chrome.desktop
 fi
 
-# Bước "GNOME giống Kali" (chỉ Debian): Debian 13 = máy có desktop GNOME (cài gnome-shell tối giản)
-# để test nhánh cài extension; Debian 12 = máy không có GNOME để test nhánh "bỏ qua".
-if [[ "$ID" == debian && "$VERSION_ID" == 13 ]]; then
+# Bước "GNOME giống Kali" (chỉ Debian): giả lập máy có desktop GNOME (cài gnome-shell tối giản)
+if [[ "$ID" == debian ]]; then
   apt-get install -y -qq --no-install-recommends gnome-shell >/dev/null || exit 1
 fi
 
@@ -79,7 +78,7 @@ else
     grep -q '^  ⊘ Chrome + fcitx5: chưa cài Google Chrome' <<<"$log"
 fi
 
-if [[ "$ID" == debian && "$VERSION_ID" == 13 ]]; then
+if [[ "$ID" == debian ]]; then
   ext=/usr/share/gnome-shell/extensions
   enabled="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions 2>/dev/null)"
   echo "  enabled-extensions: $enabled"
@@ -98,9 +97,6 @@ if [[ "$ID" == debian && "$VERSION_ID" == 13 ]]; then
     '[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == *minimize,maximize* ]]'
   check "GNOME: dark mode" bash -c \
     '[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface color-scheme)" == *prefer-dark* ]]'
-elif [[ "$ID" == debian ]]; then
-  check "GNOME chưa cài: bước GNOME được bỏ qua có lý do" \
-    grep -q '^  ⊘ GNOME giống Kali (extension + tweak): chưa cài GNOME' <<<"$log"
 fi
 
 check "shell đăng nhập là zsh" bash -c '[[ "$(getent passwd tester | cut -d: -f7)" == */zsh ]]'

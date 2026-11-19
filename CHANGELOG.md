@@ -7,7 +7,10 @@ Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
 ### Thêm
 - Debian: bước **"GNOME giống Kali (extension + tweak)"** — cài và bật bộ extension như Kali (Apps Menu, Dash to Dock, DING, Places, Removable Drive Menu, System Monitor, Tiling Assistant, AppIndicators, User Themes, VPN IP), GNOME Tweaks, Extension Manager; ghi gsettings override theo `kali-themes` (nút minimize/maximize, dark mode, phím tắt, cấu hình dock, màu GNOME Terminal). VPN IP lấy từ GitLab Kali (ghim tag). Bỏ qua (⊘) khi máy không có GNOME.
-- Smoke test: Debian 13 test nhánh có GNOME, Debian 12 test nhánh bỏ qua.
+- Smoke test: Debian 13 test nhánh có GNOME.
+
+### Thay đổi
+- CI/`tests/run-local.sh` chỉ test Ubuntu 26.04, Debian 13, Kali rolling (bỏ Ubuntu 24.04, Debian 12 cho nhanh). Script vẫn chạy trên bản cũ nhưng không còn được test.
 
 ## [v1.2.1] - 2026-11-08
 

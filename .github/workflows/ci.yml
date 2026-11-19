@@ -34,9 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - docker.io/library/ubuntu:24.04
           - docker.io/library/ubuntu:26.04
-          - docker.io/library/debian:12
           - docker.io/library/debian:13
           - docker.io/kalilinux/kali-rolling
     steps:

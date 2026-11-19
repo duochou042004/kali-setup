@@ -105,7 +105,7 @@ Trên Debian có desktop GNOME, bước **"GNOME giống Kali (extension + tweak
 
 1. Cài extension từ repo Debian: Apps Menu, Dash to Dock, Desktop Icons NG (DING), Places Status Indicator,
    Removable Drive Menu, System Monitor, Tiling Assistant, AppIndicators, User Themes — cùng app
-   **Extensions**, **Extension Manager**, **GNOME Tweaks**. Gói nào distro không có (vd Debian 12) thì bỏ qua.
+   **Extensions**, **Extension Manager**, **GNOME Tweaks**. Gói nào distro không có thì bỏ qua.
 2. **VPN IP** (hiện IP VPN trên thanh trên cùng) chỉ có trong repo Kali: tải mã nguồn từ
    [gnome-shell-extension-vpnip](https://gitlab.com/kalilinux/packages/gnome-shell-extension-vpnip) (MIT, ghim tag
    `VPNIP_REF` trong script) vào `/usr/share/gnome-shell/extensions/`. Cần GNOME 48+ (Debian 13).
@@ -156,11 +156,11 @@ git clone https://github.com/duochou042004/kali-setup && cd kali-setup && ./kali
 | [scripts/release.sh](scripts/release.sh) | Phát hành tag tự ghim phiên bản |
 | [CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi (ghi chú cho GitHub Release lấy từ đây) |
 
-**Test:** `tests/run-local.sh` (hoặc `tests/run-local.sh ubuntu:24.04` cho 1 distro). CI chạy shellcheck
-+ smoke test trên Ubuntu 24.04/26.04, Debian 12/13, Kali rolling mỗi lần push lên `main`.
+**Test:** `tests/run-local.sh` (hoặc `tests/run-local.sh debian:13` cho 1 distro). CI chạy shellcheck
++ smoke test trên Ubuntu 26.04, Debian 13, Kali rolling mỗi lần push lên `main`.
 Smoke test **không chấp nhận bước lỗi nào**; Kali giả lập máy đã cài Chrome (test nhánh cấu hình),
 Ubuntu/Debian là máy chưa có Chrome (test nhánh bỏ qua).
-Debian 13 giả lập máy có GNOME (test cài extension), Debian 12 không có GNOME (test nhánh bỏ qua).
+Debian 13 giả lập máy có GNOME (test cài extension).
 
 Bước mới không áp dụng được trên mọi máy thì gọi `skip "lý do"` trong hàm bước (đừng để nó báo lỗi).
 

@@ -217,7 +217,7 @@ apt_purge_known() {
   sudo apt remove --purge -y "${known[@]}"
 }
 
-# Chỉ cài gói có trong repo của distro này (vd Debian 12 chưa có gnome-shell-extension-system-monitor)
+# Chỉ cài gói có trong repo của distro này (gói extension khác nhau giữa các bản)
 apt_install_known() {
   local p known=()
   for p in "$@"; do

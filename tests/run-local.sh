@@ -2,13 +2,13 @@
 # tests/run-local.sh - Chạy tests/smoke.sh trên nhiều distro song song bằng podman (hoặc docker)
 #
 #   tests/run-local.sh                          # mặc định: tất cả distro như CI
-#   tests/run-local.sh ubuntu:24.04 debian:13   # chỉ một số image
+#   tests/run-local.sh ubuntu:26.04 debian:13   # chỉ một số image
 set -uo pipefail
 
 cd "$(dirname -- "$0")/.." || exit 1
 engine="$(command -v podman || command -v docker)" || { echo "Cần podman hoặc docker." >&2; exit 1; }
 images=("$@")
-(( ${#images[@]} )) || images=(ubuntu:24.04 ubuntu:26.04 debian:12 debian:13 kalilinux/kali-rolling)
+(( ${#images[@]} )) || images=(ubuntu:26.04 debian:13 kalilinux/kali-rolling)
 
 logdir="$(mktemp -d "${TMPDIR:-/tmp}/kali-setup-smoke.XXXXXX")"
 echo "Log: $logdir"
