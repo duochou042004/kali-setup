@@ -32,7 +32,7 @@ Thay `main` bằng tag (xem [Releases](https://github.com/duochou042004/kali-set
 `install.sh` của tag nào tự lấy `kali-setup.sh` + `dotfiles/` của đúng tag đó:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.2.1/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.3.0/install.sh | bash
 ```
 
 Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) và file `SHA256SUMS`.
@@ -42,7 +42,7 @@ Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) v
 ### Khi chạy trông như thế nào
 
 ```text
-┌──(kali-setup v1.2.1)──────────────────────────────────────────
+┌──(kali-setup v1.3.0)──────────────────────────────────────────
 │ Distro  : Ubuntu 24.04.3 LTS (ubuntu 24.04 noble)
 │ User    : duong@laptop
 │ Số bước : 16 (gồm bước chuẩn bị môi trường giống Kali)
