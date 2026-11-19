@@ -3,6 +3,12 @@
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), phiên bản theo [SemVer](https://semver.org/).
 Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
+## [Unreleased]
+
+### Thêm
+- Debian: bước **"GNOME giống Kali (extension + tweak)"** — cài và bật bộ extension như Kali (Apps Menu, Dash to Dock, DING, Places, Removable Drive Menu, System Monitor, Tiling Assistant, AppIndicators, User Themes, VPN IP), GNOME Tweaks, Extension Manager; ghi gsettings override theo `kali-themes` (nút minimize/maximize, dark mode, phím tắt, cấu hình dock, màu GNOME Terminal). VPN IP lấy từ GitLab Kali (ghim tag). Bỏ qua (⊘) khi máy không có GNOME.
+- Smoke test: Debian 13 test nhánh có GNOME, Debian 12 test nhánh bỏ qua.
+
 ## [v1.2.1] - 2026-11-08
 
 ### Sửa

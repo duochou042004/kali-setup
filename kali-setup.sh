@@ -70,8 +70,10 @@ STEPS+=(
   "Cài Podman + podman-compose|install_podman"
   "Setup fcitx5|setup_fcitx5"
   "Chrome + fcitx5|setup_chrome_fcitx"
-  "apt update/upgrade/clean|system_upgrade"
 )
+# Debian thuần: GNOME không có sẵn extension/tweak như Kali (Kali, Ubuntu đã có sẵn bộ riêng)
+[[ "$DISTRO_ID" == debian ]] && STEPS+=("GNOME giống Kali (extension + tweak)|setup_gnome")
+STEPS+=("apt update/upgrade/clean|system_upgrade")
 
 # Banner kiểu prompt Kali: ┌──(kali-setup v1.2.0)
 hr() { local s; printf -v s '%*s' "$1" ''; printf '%s' "${s// /─}"; }  # hr N: N ký tự ─
@@ -213,6 +215,20 @@ apt_purge_known() {
   done
   (( ${#known[@]} )) || return 0
   sudo apt remove --purge -y "${known[@]}"
+}
+
+# Chỉ cài gói có trong repo của distro này (vd Debian 12 chưa có gnome-shell-extension-system-monitor)
+apt_install_known() {
+  local p known=()
+  for p in "$@"; do
+    if apt-cache policy "$p" 2>/dev/null | grep -q 'Candidate: [0-9]'; then
+      known+=("$p")
+    else
+      echo "  (bỏ qua $p: không có trên ${DISTRO_ID} ${DISTRO_VERSION})"
+    fi
+  done
+  (( ${#known[@]} )) || return 0
+  sudo apt-get install -y "${known[@]}"
 }
 
 remove_java() ( set -e
@@ -416,6 +432,150 @@ sed -i \
   -e 's|Exec=/usr/bin/google-chrome-stable$|Exec=env GTK_IM_MODULE=fcitx /usr/bin/google-chrome-stable --ozone-platform=x11|' \
   -e 's|Exec=/usr/bin/google-chrome-stable --incognito|Exec=env GTK_IM_MODULE=fcitx /usr/bin/google-chrome-stable --ozone-platform=x11 --incognito|' \
   ~/.local/share/applications/google-chrome.desktop
+)
+
+# ---------- GNOME giống Kali (chỉ Debian) ----------
+
+# Kali: gói kali-desktop-gnome cài các extension, kali-themes bật chúng + chỉnh GNOME qua file
+# gsettings override. Debian có gói cho hầu hết extension đó => cài rồi ghi override tương tự
+# (giá trị MẶC ĐỊNH hệ thống: không đè cài đặt user đã tự đổi). VPN IP chỉ có trong repo Kali.
+VPNIP_REF="kali/2026.4.0"  # tag của gitlab.com/kalilinux/packages/gnome-shell-extension-vpnip
+GNOME_OVERRIDE=/usr/share/glib-2.0/schemas/90_kali-setup.gschema.override
+
+setup_gnome() ( set -eE
+trap 'echo "  -> lệnh lỗi: $BASH_COMMAND (mã $?)" >&2' ERR
+command -v gnome-shell >/dev/null \
+  || skip "chưa cài GNOME (gnome-shell) - cài desktop GNOME rồi chạy lại script"
+local ver major
+ver="$(dpkg-query -W -f='${Version}' gnome-shell 2>/dev/null)"
+major="${ver%%.*}"; major="${major#*:}"
+echo "GNOME Shell ${ver:-?}"
+
+apt_install_known \
+  gnome-shell-extension-appindicator gnome-shell-extension-apps-menu \
+  gnome-shell-extension-dashtodock gnome-shell-extension-desktop-icons-ng \
+  gnome-shell-extension-drive-menu gnome-shell-extension-places-menu \
+  gnome-shell-extension-system-monitor gnome-shell-extension-tiling-assistant \
+  gnome-shell-extension-user-theme \
+  gnome-shell-extension-prefs gnome-shell-extension-manager gnome-tweaks gnome-themes-extra
+
+# VPN IP (top-panel-vpnip@kali.org): lấy mã nguồn từ GitLab Kali (MIT), ghim tag. Mã dùng API
+# của GNOME 48+ nên chỉ cài từ 48; metadata chỉ ghi bản GNOME của Kali => thêm bản hiện tại.
+local extdir=/usr/share/gnome-shell/extensions
+if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 48 )); then
+  local tmp f ok=1 url="https://gitlab.com/kalilinux/packages/gnome-shell-extension-vpnip/-/raw/${VPNIP_REF}"
+  tmp="$(mktemp -d)"
+  for f in metadata.json extension.js VPNIPAddressIndicator.js utils.js; do
+    curl -fsSL --retry 3 -o "$tmp/$f" "$url/$f" || { ok=0; break; }
+  done
+  if (( ok )); then
+    grep -q "\"$major\"" "$tmp/metadata.json" \
+      || sed -i -E "s/(\"shell-version\": *\[)/\1\"$major\", /" "$tmp/metadata.json"
+    for f in metadata.json extension.js VPNIPAddressIndicator.js utils.js; do
+      sudo install -Dm644 "$tmp/$f" "$extdir/top-panel-vpnip@kali.org/$f"
+    done
+    echo "Đã cài VPN IP ($VPNIP_REF)"
+  else
+    echo "  -> cảnh báo: không tải được VPN IP từ GitLab Kali, bỏ qua extension này" >&2
+  fi
+  rm -rf "$tmp"
+else
+  echo "  (bỏ qua VPN IP: cần GNOME 48+)"
+fi
+
+# Bật đúng các extension như Kali (theo thứ tự của Kali) - chỉ những cái đã có trên máy
+local uuid exts=()
+for uuid in apps-menu@gnome-shell-extensions.gcampax.github.com dash-to-dock@micxgx.gmail.com \
+            ding@rastersoft.com user-theme@gnome-shell-extensions.gcampax.github.com \
+            ubuntu-appindicators@ubuntu.com tiling-assistant@leleat-on-github \
+            system-monitor@gnome-shell-extensions.gcampax.github.com \
+            drive-menu@gnome-shell-extensions.gcampax.github.com \
+            places-menu@gnome-shell-extensions.gcampax.github.com top-panel-vpnip@kali.org; do
+  if [[ -d "$extdir/$uuid" ]]; then exts+=("'$uuid'"); else echo "  (không có extension $uuid)"; fi
+done
+local list; list="$(IFS=,; echo "${exts[*]}")"; list="[${list//,/, }]"
+
+# Nội dung lấy từ debian/kali-themes.gsettings-override của Kali, bỏ phần cần theme/app riêng
+# của Kali (Kali-Dark, icon Flat-Remix, wallpaper, favorite-apps). adw-gtk3 không có trên Debian
+# => GTK3 dùng Adwaita-dark (gnome-themes-extra).
+sudo tee "$GNOME_OVERRIDE" >/dev/null <<EOF
+# Tạo bởi kali-setup (bước "GNOME giống Kali"). Gỡ: xóa file này rồi chạy
+#   sudo glib-compile-schemas /usr/share/glib-2.0/schemas
+[org.gnome.shell]
+disable-extension-version-validation = true
+enabled-extensions = $list
+
+[org.gnome.shell.extensions.dash-to-dock]
+custom-theme-shrink = false
+show-trash = false
+running-indicator-style = 'DOTS'
+disable-overview-on-startup = true
+
+[org.gnome.shell.extensions.ding]
+icon-size = 'small'
+show-home = false
+show-trash = false
+show-volumes = false
+
+[org.gnome.shell.extensions.system-monitor]
+show-swap = false
+
+[org.gnome.shell.extensions.tiling-assistant]
+enable-tiling-popup = false
+enable-raise-tile-group = false
+enable-layout-picker = false
+
+[org.gnome.desktop.interface]
+color-scheme = 'prefer-dark'
+gtk-theme = 'Adwaita-dark'
+gtk-enable-primary-paste = true
+
+[org.gnome.desktop.wm.preferences]
+button-layout = 'appmenu:minimize,maximize,close'
+
+[org.gnome.desktop.wm.keybindings]
+show-desktop = ['<Primary><Super>d', '<Primary><Alt>d', '<Super>d']
+switch-applications = ['<Super>Tab']
+switch-applications-backward = ['<Shift><Super>Tab']
+switch-windows = ['<Alt>Tab']
+switch-windows-backward = ['<Shift><Alt>Tab']
+
+[org.gtk.Settings.FileChooser]
+sort-directories-first = true
+
+[org.gnome.Terminal.Legacy.Profile]
+background-transparency-percent = 5
+bold-is-bright = true
+palette = ['#1F2229', '#D41919', '#5EBDAB', '#FEA44C', '#367bf0', '#9755b3', '#49AEE6', '#E6E6E6', '#198388', '#EC0101', '#47D4B9', '#FF8A18', '#277FFF', '#962ac3', '#05A1F7', '#FFFFFF']
+scrollback-unlimited = true
+use-theme-colors = true
+use-transparent-background = true
+
+[org.gnome.Terminal.Legacy.Settings]
+confirm-close = false
+theme-variant = 'dark'
+EOF
+# Override cho schema chưa cài (vd gnome-terminal) chỉ bị bỏ qua kèm cảnh báo, không lỗi
+sudo glib-compile-schemas /usr/share/glib-2.0/schemas
+echo "enabled-extensions = $list"
+
+# User đã từng tự bật/tắt extension thì giá trị riêng của user đè mặc định ở trên
+# => gộp thêm extension còn thiếu (chỉ khi đang trong phiên đồ họa có dbus)
+if [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]] && command -v dconf >/dev/null; then
+  local cur new
+  cur="$(dconf read /org/gnome/shell/enabled-extensions 2>/dev/null || true)"
+  if [[ -n "$cur" ]]; then
+    new="$cur"
+    for uuid in "${exts[@]}"; do
+      [[ "$new" == *"$uuid"* ]] && continue
+      if [[ "$new" == *"[]" ]]; then new="[$uuid]"; else new="${new%]}, $uuid]"; fi
+    done
+    if [[ "$new" != "$cur" ]]; then
+      dconf write /org/gnome/shell/enabled-extensions "$new"
+      echo "Đã gộp vào cài đặt riêng của user: $new"
+    fi
+  fi
+fi
 )
 
 # ---------- Cập nhật hệ thống (chạy cuối) ----------

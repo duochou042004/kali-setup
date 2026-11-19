@@ -41,6 +41,12 @@ if [[ "$ID" == kali ]]; then
     > /usr/share/applications/google-chrome.desktop
 fi
 
+# Bước "GNOME giống Kali" (chỉ Debian): Debian 13 = máy có desktop GNOME (cài gnome-shell tối giản)
+# để test nhánh cài extension; Debian 12 = máy không có GNOME để test nhánh "bỏ qua".
+if [[ "$ID" == debian && "$VERSION_ID" == 13 ]]; then
+  apt-get install -y -qq --no-install-recommends gnome-shell >/dev/null || exit 1
+fi
+
 useradd -m -s /bin/bash tester
 [[ "$ID" == kali ]] && chsh -s /usr/bin/zsh tester
 printf 'tester ALL=(ALL) NOPASSWD:ALL\nDefaults env_keep += "DEBIAN_FRONTEND TZ"\n' > /etc/sudoers.d/tester
@@ -71,6 +77,30 @@ if [[ "$ID" == kali ]]; then
 else
   check "Chrome chưa cài: bước Chrome được bỏ qua có lý do" \
     grep -q '^  ⊘ Chrome + fcitx5: chưa cài Google Chrome' <<<"$log"
+fi
+
+if [[ "$ID" == debian && "$VERSION_ID" == 13 ]]; then
+  ext=/usr/share/gnome-shell/extensions
+  enabled="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions 2>/dev/null)"
+  echo "  enabled-extensions: $enabled"
+  check "GNOME: có file gsettings override" test -f /usr/share/glib-2.0/schemas/90_kali-setup.gschema.override
+  for u in apps-menu@gnome-shell-extensions.gcampax.github.com dash-to-dock@micxgx.gmail.com \
+           ding@rastersoft.com user-theme@gnome-shell-extensions.gcampax.github.com \
+           ubuntu-appindicators@ubuntu.com tiling-assistant@leleat-on-github \
+           system-monitor@gnome-shell-extensions.gcampax.github.com \
+           drive-menu@gnome-shell-extensions.gcampax.github.com \
+           places-menu@gnome-shell-extensions.gcampax.github.com top-panel-vpnip@kali.org; do
+    check "GNOME: cài + bật $u" bash -c "[[ -d '$ext/$u' && \"\$1\" == *\"'$u'\"* ]]" _ "$enabled"
+  done
+  major="$(dpkg-query -W -f='${Version}' gnome-shell)"; major="${major%%.*}"
+  check "GNOME: VPN IP khai báo GNOME $major" grep -q "\"$major\"" "$ext/top-panel-vpnip@kali.org/metadata.json"
+  check "GNOME: nút minimize/maximize" bash -c \
+    '[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == *minimize,maximize* ]]'
+  check "GNOME: dark mode" bash -c \
+    '[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface color-scheme)" == *prefer-dark* ]]'
+elif [[ "$ID" == debian ]]; then
+  check "GNOME chưa cài: bước GNOME được bỏ qua có lý do" \
+    grep -q '^  ⊘ GNOME giống Kali (extension + tweak): chưa cài GNOME' <<<"$log"
 fi
 
 check "shell đăng nhập là zsh" bash -c '[[ "$(getent passwd tester | cut -d: -f7)" == */zsh ]]'

@@ -68,8 +68,9 @@ Không có bước nào lỗi.
 
 - `✓` thành công · `✗` lỗi (liệt kê ở "Các bước lỗi", xem log) · `⊘` **bỏ qua**: bước không áp dụng được
   trên máy này, có ghi lý do, **không phải lỗi**.
-- Hiện chỉ có **"Chrome + fcitx5"** có thể bị bỏ qua: bước này chỉ chỉnh shortcut của Google Chrome
+- **"Chrome + fcitx5"** bị bỏ qua khi chưa cài Google Chrome: bước này chỉ chỉnh shortcut của Chrome
   (gói `google-chrome-stable`), mà Kali/Ubuntu/Debian cài mới đều chưa có Chrome. Cài Chrome rồi chạy lại script.
+- **"GNOME giống Kali"** (chỉ Debian) bị bỏ qua khi máy không có desktop GNOME (`gnome-shell`).
 
 Xong sẽ có tiếng bíp + thông báo desktop (`notify-send`, nếu có). Tắt màu: `NO_COLOR=1`.
 
@@ -81,6 +82,7 @@ Xong sẽ có tiếng bíp + thông báo desktop (`notify-send`, nếu có). T�
 | .NET 10 | repo Microsoft `debian/13` | repo Microsoft `debian/<VERSION_ID>` | gói Ubuntu / `ppa:dotnet/backports` |
 | Repo WARP | `trixie` | codename (fallback `trixie`) | codename (fallback `noble`) |
 | `im-config` | `-w` | `-w` nếu có, không thì `-n` | `-w` nếu có, không thì `-n` |
+| GNOME extension + tweak | — (đã có sẵn) | cài + bật như Kali ([xem dưới](#gnome-giống-kali-debian)) | — (dùng bộ của Ubuntu) |
 
 Trên Ubuntu/Debian, bước **"Chuẩn bị môi trường giống Kali"** chạy đầu tiên:
 
@@ -94,6 +96,30 @@ Nếu bước này lỗi, script dừng luôn (các bước sau phụ thuộc v�
 
 > Ký tự `㉿` trong prompt cần font có hỗ trợ (Ubuntu Desktop thường có sẵn; nếu hiện ô vuông: `sudo apt install fonts-noto-cjk`).
 > Màu/font của ứng dụng terminal (qterminal trên Kali, GNOME Terminal trên Ubuntu) là cài đặt riêng của ứng dụng, script không đổi.
+
+### GNOME giống Kali (Debian)
+
+Kali và Ubuntu cài sẵn, bật sẵn một bộ GNOME extension; Debian cài GNOME thuần thì không có.
+Trên Debian có desktop GNOME, bước **"GNOME giống Kali (extension + tweak)"** làm giống Kali
+(theo gói `kali-desktop-gnome` và file `kali-themes.gsettings-override`):
+
+1. Cài extension từ repo Debian: Apps Menu, Dash to Dock, Desktop Icons NG (DING), Places Status Indicator,
+   Removable Drive Menu, System Monitor, Tiling Assistant, AppIndicators, User Themes — cùng app
+   **Extensions**, **Extension Manager**, **GNOME Tweaks**. Gói nào distro không có (vd Debian 12) thì bỏ qua.
+2. **VPN IP** (hiện IP VPN trên thanh trên cùng) chỉ có trong repo Kali: tải mã nguồn từ
+   [gnome-shell-extension-vpnip](https://gitlab.com/kalilinux/packages/gnome-shell-extension-vpnip) (MIT, ghim tag
+   `VPNIP_REF` trong script) vào `/usr/share/gnome-shell/extensions/`. Cần GNOME 48+ (Debian 13).
+3. Ghi mặc định hệ thống `/usr/share/glib-2.0/schemas/90_kali-setup.gschema.override`: bật các extension trên,
+   cấu hình Dash to Dock / DING / Tiling Assistant / System Monitor như Kali, nút minimize/maximize, dark mode
+   (`prefer-dark` + `Adwaita-dark`), phím tắt Super+Tab / Super+D, GNOME Terminal màu Kali.
+   Đây là giá trị **mặc định** — cài đặt bạn đã tự đổi được giữ nguyên (riêng danh sách extension: chỉ gộp thêm).
+4. Không đổi theme Kali-Dark, icon, wallpaper, font (không có trên Debian).
+
+Có hiệu lực sau khi đăng nhập lại (script tự reboot ở cuối). Gỡ phần tweak:
+
+```bash
+sudo rm /usr/share/glib-2.0/schemas/90_kali-setup.gschema.override && sudo glib-compile-schemas /usr/share/glib-2.0/schemas
+```
 
 ## Biến môi trường
 
@@ -134,6 +160,7 @@ git clone https://github.com/duochou042004/kali-setup && cd kali-setup && ./kali
 + smoke test trên Ubuntu 24.04/26.04, Debian 12/13, Kali rolling mỗi lần push lên `main`.
 Smoke test **không chấp nhận bước lỗi nào**; Kali giả lập máy đã cài Chrome (test nhánh cấu hình),
 Ubuntu/Debian là máy chưa có Chrome (test nhánh bỏ qua).
+Debian 13 giả lập máy có GNOME (test cài extension), Debian 12 không có GNOME (test nhánh bỏ qua).
 
 Bước mới không áp dụng được trên mọi máy thì gọi `skip "lý do"` trong hàm bước (đừng để nó báo lỗi).
 
