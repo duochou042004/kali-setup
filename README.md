@@ -185,6 +185,8 @@ Bước mới không áp dụng được trên mọi máy thì gọi `skip "lý 
 
 1. Thêm mục `## [vX.Y.Z] - YYYY-MM-DD` vào [CHANGELOG.md](CHANGELOG.md), commit, push `main`, chờ CI xanh.
 2. `scripts/release.sh vX.Y.Z --dry-run` để xem trước, rồi `scripts/release.sh vX.Y.Z`.
+   Không cần clone: vào **Actions → Release → Run workflow** (nhánh `main`), nhập `vX.Y.Z` —
+   GitHub Actions tự chạy `scripts/release.sh` rồi tạo Release.
 
 `release.sh` tạo một commit phát hành (con của `main`, không nằm trên `main`) đổi dòng
 `"main"  # @release-ref` trong `install.sh` và `kali-setup.sh` thành tag, gắn tag vào commit đó và push tag.

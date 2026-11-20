@@ -1,9 +1,19 @@
 name: Release
 
-# Chạy khi push tag vX.Y.Z (tạo bằng scripts/release.sh)
+# Hai cách phát hành:
+#  1. Push tag vX.Y.Z tạo bằng scripts/release.sh (trên máy)
+#  2. Không cần clone: Actions > Release > Run workflow (nhánh main), nhập tag vX.Y.Z
+#     => job tự chạy scripts/release.sh trên main (ghim phiên bản + tạo/push tag) rồi tạo Release.
+#     Tag push bằng GITHUB_TOKEN không kích hoạt lại workflow này nên không bị chạy 2 lần.
 on:
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag phát hành (vX.Y.Z) - CHANGELOG.md trên main phải có mục "## [vX.Y.Z]"'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,12 +21,27 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Tạo tag bằng scripts/release.sh (chạy tay)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "::error::Chạy workflow trên nhánh main"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          scripts/release.sh "$TAG"
+          git checkout -q "refs/tags/$TAG"
 
       - name: Kiểm tra tag đã ghim phiên bản
         run: |
-          tag="${GITHUB_REF_NAME}"
+          tag="$TAG"
           for f in install.sh kali-setup.sh; do
             grep -q "\"$tag\"[[:space:]]*# @release-ref" "$f" \
               || { echo "::error file=$f::chưa ghim \"$tag\" - hãy tạo tag bằng scripts/release.sh"; exit 1; }
@@ -25,7 +50,7 @@ jobs:
 
       - name: SHA256SUMS + ghi chú phát hành
         run: |
-          tag="${GITHUB_REF_NAME}"
+          tag="$TAG"
           sha256sum install.sh kali-setup.sh dotfiles/* > SHA256SUMS
           ks_sha="$(sha256sum kali-setup.sh | cut -d' ' -f1)"
           raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}"
@@ -50,6 +75,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" --title "kali-setup ${GITHUB_REF_NAME}" \
+          gh release create "$TAG" --title "kali-setup $TAG" \
             --notes-file NOTES.md --verify-tag \
             install.sh kali-setup.sh SHA256SUMS
