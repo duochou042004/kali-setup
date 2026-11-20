@@ -3,6 +3,16 @@
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/), phiên bản theo [SemVer](https://semver.org/).
 Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
+## [v1.4.0] - 2026-11-20
+
+### Thay đổi
+- Node.js **26 LTS** (thay 24) qua nvm **v0.41.0**, theo hướng dẫn chính thức trên nodejs.org; dùng **pnpm** thay npm: cài Corepack (`npm install -g corepack`, Node 25+ không còn kèm) rồi `corepack enable pnpm`. Không hỏi Y/n khi Corepack tải pnpm lần đầu.
+- Ubuntu/Debian: bước "Gỡ Java cũ (apt)", "Gỡ .NET 6" chỉ gỡ gói **đang cài**; máy cài mới không có Java/.NET thì **bỏ qua** (⊘) kèm lý do. "Dọn dẹp + xóa alternatives" bỏ qua khi không có gì sót lại. Kali giữ nguyên như cũ.
+
+### Thêm
+- Ubuntu/Debian: bước **"Cài công cụ CLI (clipboard, Python, shellcheck, pipx)"** — kiểm tra và cài gói còn thiếu: `wl-clipboard xclip python3-jsonschema python-is-python3 shellcheck pipx`.
+- Smoke test: kiểm tra Node 26, `corepack`, `pnpm`, các công cụ CLI và các bước gỡ Java/.NET được bỏ qua trên Ubuntu/Debian.
+
 ## [v1.3.0] - 2026-11-19
 
 ### Thêm
