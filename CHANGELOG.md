@@ -11,6 +11,7 @@ Mục của mỗi tag được dùng làm ghi chú GitHub Release.
 
 ### Thêm
 - Ubuntu/Debian: bước **"Cài công cụ CLI (clipboard, Python, shellcheck, pipx)"** — kiểm tra và cài gói còn thiếu: `wl-clipboard xclip python3-jsonschema python-is-python3 shellcheck pipx`.
+- Phát hành không cần clone: **Actions → Release → Run workflow**, nhập tag — Actions tự chạy `scripts/release.sh` (ghim phiên bản, tạo tag) rồi tạo GitHub Release.
 - Smoke test: kiểm tra Node 26, `corepack`, `pnpm`, các công cụ CLI và các bước gỡ Java/.NET được bỏ qua trên Ubuntu/Debian.
 
 ## [v1.3.0] - 2026-11-19
