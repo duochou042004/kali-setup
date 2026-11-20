@@ -105,20 +105,28 @@ check "nvm được nạp trong ~/.zshrc" grep -q NVM_DIR /home/tester/.zshrc
 check "SDKMAN được nạp trong ~/.zshrc" grep -q sdkman-init /home/tester/.zshrc
 [[ "$ID" != kali ]] && check "/etc/zsh/zprofile nạp /etc/profile" \
   grep -qxF "emulate sh -c '. /etc/profile'" /etc/zsh/zprofile
+if [[ "$ID" != kali ]]; then
+  check "công cụ CLI: wl-copy xclip python shellcheck pipx" \
+    bash -c 'for c in wl-copy xclip python shellcheck pipx; do command -v $c || exit 1; done; python -c "import jsonschema"'
+  # Ubuntu/Debian cài mới không có Java/.NET => các bước gỡ/dọn được bỏ qua có lý do
+  check "Ubuntu/Debian: bước gỡ Java bỏ qua có lý do" grep -q '^  ⊘ Gỡ Java cũ (apt): .*không có sẵn Java' <<<"$log"
+  check "Ubuntu/Debian: bước gỡ .NET 6 bỏ qua có lý do" grep -q '^  ⊘ Gỡ .NET 6: .*không có sẵn .NET 6' <<<"$log"
+fi
 
 # Chạy trong zsh đăng nhập + tương tác, như mở terminal mới sau khi reboot
 cat > /tmp/tools.zsh <<'EOF'
-for c in java node npm dotnet gh glab podman; do
+for c in java node npm corepack pnpm dotnet gh glab podman; do
   command -v $c >/dev/null || { echo "thiếu $c"; exit 1; }
 done
 echo "  java   : $(java -version 2>&1 | head -1)"
-echo "  node   : $(node -v)   dotnet: $(dotnet --version)"
+echo "  node   : $(node -v)   pnpm: $(pnpm -v)   dotnet: $(dotnet --version)"
+[[ "$(node -v)" == v26.* ]] || { echo "node không phải 26.x"; exit 1; }
 echo "  gh     : $(gh --version | head -1)"
 echo "  prompt : $PROMPT_ALTERNATIVE"
 EOF
 chmod 644 /tmp/tools.zsh
 if sudo -u tester -H zsh -lic 'source /tmp/tools.zsh' </dev/null 2>/dev/null; then
-  echo "  ✓ java/node/npm/dotnet/gh/glab/podman chạy được từ zsh"
+  echo "  ✓ java/node 26/pnpm/dotnet/gh/glab/podman chạy được từ zsh"
 else
   echo "  ✗ thiếu công cụ trong zsh"; fail=1
 fi

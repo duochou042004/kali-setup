@@ -54,14 +54,15 @@ is_kali() { [[ "$DISTRO_ID" == kali ]]; }
 # ---------- Danh sách bước ("Tên bước|tên_hàm", chạy theo thứ tự) ----------
 STEPS=()
 # Ubuntu/Debian: dựng môi trường giống Kali TRƯỚC (xem phần "Chạy" bên dưới)
-is_kali || STEPS+=("Chuẩn bị môi trường giống Kali (gói nền + zsh)|prepare_env")
+is_kali || STEPS+=("Chuẩn bị môi trường giống Kali (gói nền + zsh)|prepare_env"
+                  "Cài công cụ CLI (clipboard, Python, shellcheck, pipx)|install_cli_tools")
 STEPS+=(
   "Gỡ Java cũ (apt)|remove_java"
   "Gỡ .NET 6|remove_dotnet6"
   "Dọn dẹp + xóa alternatives|cleanup"
   "Cài Java qua SDKMAN|install_java"
   "Cài .NET SDK 10|install_dotnet10"
-  "Cài Node.js 24 qua nvm|install_node"
+  "Cài Node.js 26 LTS + pnpm qua nvm|install_node"
   "Cấu hình Git|git_config"
   "Cài GitHub CLI (gh)|install_gh"
   "Cài GitLab CLI (glab)|install_glab"
@@ -75,7 +76,7 @@ STEPS+=(
 [[ "$DISTRO_ID" == debian ]] && STEPS+=("GNOME giống Kali (extension + tweak)|setup_gnome")
 STEPS+=("apt update/upgrade/clean|system_upgrade")
 
-# Banner kiểu prompt Kali: ┌──(kali-setup v1.2.0)
+# Banner kiểu prompt Kali: ┌──(kali-setup v1.4.0)
 hr() { local s; printf -v s '%*s' "$1" ''; printf '%s' "${s// /─}"; }  # hr N: N ký tự ─
 banner() {
   local title="(kali-setup ${SETUP_VERSION})" width=64
@@ -200,20 +201,51 @@ getent passwd "$USER" | cut -d: -f7
 zsh --version
 )
 
+# Ubuntu/Debian: công cụ dòng lệnh hay dùng (clipboard cho Wayland/X11, Python, shellcheck, pipx)
+CLI_TOOLS=(wl-clipboard xclip python3-jsonschema python-is-python3 shellcheck pipx)
+install_cli_tools() ( set -e
+local p missing=()
+for p in "${CLI_TOOLS[@]}"; do
+  if dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed'; then
+    echo "  (đã có $p)"
+  else
+    missing+=("$p")
+  fi
+done
+if (( ${#missing[@]} )); then
+  echo "Cài: ${missing[*]}"
+  sudo apt update && sudo apt install -y "${missing[@]}"
+else
+  echo "Đã có đủ: ${CLI_TOOLS[*]}"
+fi
+python --version
+shellcheck --version | sed -n 2p
+pipx --version
+)
+
 # ---------- Setup developer chuẩn ----------
 
-# Chỉ gỡ gói mà apt/dpkg biết tới: Ubuntu/Debian có thể không có openjdk-25, dotnet 6...
-# (apt báo "Unable to locate package" và hủy cả lệnh). Trên Kali mọi gói đều có => lệnh y như cũ.
-apt_purge_known() {
-  local p known=()
+# Kali: gỡ gói mà apt/dpkg biết tới (Kali có sẵn Java/.NET 6 => lệnh y như cũ).
+# Ubuntu/Debian cài mới KHÔNG có sẵn Java/.NET => chỉ gỡ gói đang thực sự cài (hoặc còn sót
+# cấu hình); không có gói nào thì bỏ qua bước (⊘) kèm lý do. Gọi trong hàm bước (subshell).
+apt_purge_known() {  # apt_purge_known "tên nhóm gói" gói...
+  local what="$1" p st known=(); shift
   for p in "$@"; do
-    if apt-cache show "$p" >/dev/null 2>&1 || dpkg-query -W "$p" >/dev/null 2>&1; then
-      known+=("$p")
+    if is_kali; then
+      if apt-cache show "$p" >/dev/null 2>&1 || dpkg-query -W "$p" >/dev/null 2>&1; then
+        known+=("$p")
+      else
+        echo "  (bỏ qua $p: không có trên ${DISTRO_ID})"
+      fi
     else
-      echo "  (bỏ qua $p: không có trên ${DISTRO_ID})"
+      st="$(dpkg-query -W -f='${db:Status-Status}' "$p" 2>/dev/null || true)"
+      if [[ -n "$st" && "$st" != not-installed ]]; then known+=("$p"); fi
     fi
   done
-  (( ${#known[@]} )) || return 0
+  if (( ! ${#known[@]} )); then
+    is_kali && return 0
+    skip "${DISTRO_ID^} cài mới không có sẵn $what như Kali - không có gì để gỡ"
+  fi
   sudo apt remove --purge -y "${known[@]}"
 }
 
@@ -232,7 +264,7 @@ apt_install_known() {
 }
 
 remove_java() ( set -e
-apt_purge_known \
+apt_purge_known "Java (apt)" \
   openjdk-25-jre \
   openjdk-25-jre-headless \
   default-jre \
@@ -250,7 +282,7 @@ apt_purge_known \
 )
 
 remove_dotnet6() ( set -e
-apt_purge_known \
+apt_purge_known ".NET 6" \
   dotnet-sdk-6.0 \
   dotnet-runtime-6.0 \
   dotnet-runtime-deps-6.0 \
@@ -260,7 +292,18 @@ apt_purge_known \
   dotnet-targeting-pack-6.0
 )
 
+JAVA_DOTNET_LEFTOVERS=(/usr/share/dotnet /usr/lib/jvm/java-25-openjdk-amd64
+                       /usr/lib/jvm/java-1.25.0-openjdk-amd64 "$HOME/.dotnet" "$HOME/.nuget")
 cleanup() ( set -e
+# Ubuntu/Debian cài mới: không có Java/.NET sót lại, không có gói thừa => bỏ qua
+if ! is_kali; then
+  local d left=0
+  for d in "${JAVA_DOTNET_LEFTOVERS[@]}"; do [[ -e "$d" ]] && left=1; done
+  update-alternatives --list java >/dev/null 2>&1 && left=1
+  update-alternatives --list javac >/dev/null 2>&1 && left=1
+  apt-get -s autoremove 2>/dev/null | grep -q '^Remv' && left=1
+  (( left )) || skip "không có Java/.NET hay gói thừa nào sót lại để dọn"
+fi
 # Dọn dependencies thừa
 sudo apt autoremove --purge -y
 sudo apt clean
@@ -315,20 +358,27 @@ dotnet --version
 
 # Không dùng set -e: nvm.sh có lệnh trả mã khác 0 vô hại (giống SDKMAN)
 install_node() (
+# Theo hướng dẫn chính thức trên nodejs.org (nvm + pnpm qua Corepack)
 # Download and install nvm:
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.41.0/install.sh | bash
 
 # in lieu of restarting the shell
 \. "$HOME/.nvm/nvm.sh"
 
 # Download and install Node.js:
-nvm install 24
+nvm install 26
 
 # Verify the Node.js version:
-node -v # Should print "v24.21.0".
+node -v # Should print "v26.13.1".
 
-# Verify npm version:
-npm -v # Should print "11.19.0".
+# Install Corepack (từ Node 25 không còn đi kèm Node):
+npm install -g corepack
+
+# Download and install pnpm:
+corepack enable pnpm
+
+# Verify pnpm version (lần đầu Corepack tải pnpm; tắt câu hỏi "Do you want to continue? [Y/n]"):
+COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm -v
 )
 
 setup_kvm() ( set -e

@@ -3,7 +3,7 @@
 [![CI](https://github.com/duochou042004/kali-setup/actions/workflows/ci.yml/badge.svg)](https://github.com/duochou042004/kali-setup/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/duochou042004/kali-setup)](https://github.com/duochou042004/kali-setup/releases/latest)
 
-Setup developer chuẩn sau khi cài mới Kali Linux (Java/SDKMAN, .NET 10, Node 24/nvm, gh, glab, WARP, Podman, fcitx5...).
+Setup developer chuẩn sau khi cài mới Kali Linux (Java/SDKMAN, .NET 10, Node 26 LTS/nvm + pnpm, gh, glab, WARP, Podman, fcitx5...).
 
 Hỗ trợ **Kali** (chuẩn gốc), **Ubuntu** và **Debian** — script tự nhận diện distro qua `/etc/os-release`.
 
@@ -32,7 +32,7 @@ Thay `main` bằng tag (xem [Releases](https://github.com/duochou042004/kali-set
 `install.sh` của tag nào tự lấy `kali-setup.sh` + `dotfiles/` của đúng tag đó:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.3.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/duochou042004/kali-setup/v1.4.0/install.sh | bash
 ```
 
 Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) và file `SHA256SUMS`.
@@ -42,26 +42,29 @@ Mỗi GitHub Release có sẵn lệnh cài kèm checksum (`KALI_SETUP_SHA256`) v
 ### Khi chạy trông như thế nào
 
 ```text
-┌──(kali-setup v1.3.0)──────────────────────────────────────────
+┌──(kali-setup v1.4.0)──────────────────────────────────────────
 │ Distro  : Ubuntu 24.04.3 LTS (ubuntu 24.04 noble)
 │ User    : duong@laptop
-│ Số bước : 16 (gồm bước chuẩn bị môi trường giống Kali)
+│ Số bước : 17 (gồm bước chuẩn bị môi trường giống Kali)
 │ Log     : /home/duong/kali-setup.log
 └───────────────────────────────────────────────────────────────
 
-==> [1/16] Chuẩn bị môi trường giống Kali (gói nền + zsh)
+==> [1/17] Chuẩn bị môi trường giống Kali (gói nền + zsh)
 ...
 ✓ Chuẩn bị môi trường giống Kali (gói nền + zsh) (1m01s)
 
 ==> Tổng kết (log: /home/duong/kali-setup.log)
 Thời gian từng bước:
   ✓  1m01s  Chuẩn bị môi trường giống Kali (gói nền + zsh)
-  ✓  0m08s  Gỡ Java cũ (apt)
+  ✓  0m25s  Cài công cụ CLI (clipboard, Python, shellcheck, pipx)
+  ⊘  0m00s  Gỡ Java cũ (apt) (bỏ qua)
   ...
   ⊘  0m00s  Chrome + fcitx5 (bỏ qua)
   ✓  0m09s  apt update/upgrade/clean
-  Tổng: 4m36s  ·  15/16 bước OK, 1 bỏ qua
+  Tổng: 4m36s  ·  13/17 bước OK, 4 bỏ qua
 Các bước bỏ qua (không phải lỗi):
+  ⊘ Gỡ Java cũ (apt): Ubuntu cài mới không có sẵn Java (apt) như Kali - không có gì để gỡ
+  ...
   ⊘ Chrome + fcitx5: chưa cài Google Chrome - cài Chrome rồi chạy lại script để bật gõ tiếng Việt cho Chrome
 Không có bước nào lỗi.
 ```
@@ -70,6 +73,8 @@ Không có bước nào lỗi.
   trên máy này, có ghi lý do, **không phải lỗi**.
 - **"Chrome + fcitx5"** bị bỏ qua khi chưa cài Google Chrome: bước này chỉ chỉnh shortcut của Chrome
   (gói `google-chrome-stable`), mà Kali/Ubuntu/Debian cài mới đều chưa có Chrome. Cài Chrome rồi chạy lại script.
+- **"Gỡ Java cũ" / "Gỡ .NET 6" / "Dọn dẹp"** trên Ubuntu/Debian bị bỏ qua khi máy không có sẵn
+  Java/.NET (máy cài mới đều vậy — khác Kali có sẵn OpenJDK). Nếu bạn đã tự cài các gói đó thì vẫn gỡ như Kali.
 - **"GNOME giống Kali"** (chỉ Debian) bị bỏ qua khi máy không có desktop GNOME (`gnome-shell`).
 
 Xong sẽ có tiếng bíp + thông báo desktop (`notify-send`, nếu có). Tắt màu: `NO_COLOR=1`.
@@ -82,6 +87,8 @@ Xong sẽ có tiếng bíp + thông báo desktop (`notify-send`, nếu có). T�
 | .NET 10 | repo Microsoft `debian/13` | repo Microsoft `debian/<VERSION_ID>` | gói Ubuntu / `ppa:dotnet/backports` |
 | Repo WARP | `trixie` | codename (fallback `trixie`) | codename (fallback `noble`) |
 | `im-config` | `-w` | `-w` nếu có, không thì `-n` | `-w` nếu có, không thì `-n` |
+| Công cụ CLI (`wl-clipboard xclip python3-jsonschema python-is-python3 shellcheck pipx`) | — | cài nếu thiếu | cài nếu thiếu |
+| Gỡ Java/.NET 6 cũ | gỡ (Kali có sẵn) | chỉ gỡ gói đang cài, không có thì bỏ qua | chỉ gỡ gói đang cài, không có thì bỏ qua |
 | GNOME extension + tweak | — (đã có sẵn) | cài + bật như Kali ([xem dưới](#gnome-giống-kali-debian)) | — (dùng bộ của Ubuntu) |
 
 Trên Ubuntu/Debian, bước **"Chuẩn bị môi trường giống Kali"** chạy đầu tiên:
@@ -93,6 +100,16 @@ Trên Ubuntu/Debian, bước **"Chuẩn bị môi trường giống Kali"** ch�
 5. Các bước sau chạy với `SHELL=zsh` để nvm/SDKMAN ghi cấu hình vào `~/.zshrc` giống trên Kali.
 
 Nếu bước này lỗi, script dừng luôn (các bước sau phụ thuộc vào nó).
+
+Tiếp theo là bước **"Cài công cụ CLI"**: kiểm tra và cài gói còn thiếu trong
+`wl-clipboard xclip python3-jsonschema python-is-python3 shellcheck pipx`
+(`wl-copy`/`xclip` cho clipboard Wayland/X11, lệnh `python` trỏ tới `python3`).
+
+### Node.js + pnpm
+
+Theo hướng dẫn chính thức trên [nodejs.org](https://nodejs.org/en/download): nvm `v0.41.0` → `nvm install 26`
+(Node.js 26 LTS) → `npm install -g corepack` (từ Node 25 Corepack không còn đi kèm) → `corepack enable pnpm`.
+Dùng `pnpm` thay cho `npm` (`pnpm install`, `pnpm add <gói>`, `pnpm dlx <lệnh>` thay `npx`).
 
 > Ký tự `㉿` trong prompt cần font có hỗ trợ (Ubuntu Desktop thường có sẵn; nếu hiện ô vuông: `sudo apt install fonts-noto-cjk`).
 > Màu/font của ứng dụng terminal (qterminal trên Kali, GNOME Terminal trên Ubuntu) là cài đặt riêng của ứng dụng, script không đổi.
